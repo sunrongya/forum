@@ -17,5 +17,5 @@
 ## 回复聚合根相关
 
 ## 参考
-[DDD实践问题之 - 关于论坛的帖子回复统计信息的更新的思考](http://www.cnblogs.com/netfocus/p/4480760.html)
-[forum](https://github.com/tangxuehua/forum)
+- [DDD实践问题之 - 关于论坛的帖子回复统计信息的更新的思考](http://www.cnblogs.com/netfocus/p/4480760.html)
+- [forum](https://github.com/tangxuehua/forum)
