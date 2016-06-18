@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	es "github.com/sunrongya/eventsourcing"
 )
 
@@ -10,7 +9,6 @@ type EventHandler struct {
 }
 
 func (this *EventHandler) HandleReplyCreatedEvent(event *ReplyCreatedEvent) {
-	fmt.Println("EventHandler HandleReplyCreatedEvent")
 	c := &AcceptNewReplyCommand{
 		WithGuid:  es.WithGuid{Guid: event.PostId},
 		ReplyId:   event.GetGuid(),

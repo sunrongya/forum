@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"github.com/stretchr/testify/assert"
 	es "github.com/sunrongya/eventsourcing"
 	"strings"
@@ -11,170 +10,136 @@ import (
 
 func TestPostRestore(t *testing.T) {
 	post := &Post{}
-	post.ApplyEvents([]es.Event{
-		&PostCreatedEvent{
-			Subject:  "subject1",
-			Body:     "bodysssss",
-			AuthorId: "sry",
-		},
-		&PostUpdatedEvent{
-			Subject: "subject2",
-			Body:    "bodyttttt",
-		},
-	})
-	assert.Equal(t, 2, post.Version(), "version error")
+	createdEvent := &PostCreatedEvent{Subject: "subject1", Body: "bodysssss", AuthorId: "sry"}
+	updatedEvent := &PostUpdatedEvent{Subject: "subject2", Body: "bodyttttt"}
+	post.HandlePostCreatedEvent(createdEvent)
+	post.HandlePostUpdatedEvent(updatedEvent)
+
 	assert.Equal(t, "subject2", post._subject, "subject 错误")
 	assert.Equal(t, "bodyttttt", post._body, "body 错误")
 	assert.Equal(t, "sry", post._authorId, "authorId 错误")
 }
 
-func TestPostRestoreForErrorEvent(t *testing.T) {
-	assert.Panics(t, func() {
-		NewPost().ApplyEvents([]es.Event{&struct{ es.WithGuid }{}})
-	}, "restore error event must panic error")
+func TestCreatePostCommand(t *testing.T) {
+	command := &CreatePostCommand{Subject: "subject1", Body: "body1", AuthorId: "author1"}
+	events := []es.Event{&PostCreatedEvent{Subject: "subject1", Body: "body1", AuthorId: "author1"}}
+
+	assert.Equal(t, events, new(Post).ProcessCreatePostCommand(command), "处理CreatePostCommand命令返回的事件错误")
 }
 
-func TestCheckPostApplyEvents(t *testing.T) {
+func TestUpdatePostCommand(t *testing.T) {
+	command := &UpdatePostCommand{Subject: "subject2", Body: "body2"}
+	events := []es.Event{&PostUpdatedEvent{Subject: "subject2", Body: "body2"}}
+
+	assert.Equal(t, events, new(Post).ProcessUpdatePostCommand(command), "处理UpdatePostCommand命令返回的事件错误")
+}
+
+func TestAcceptNewReplyCommandOfFirst(t *testing.T) {
+	replyId, now := es.NewGuid(), time.Now()
+	post := &Post{_replyIds: map[es.Guid]bool{}}
+	command := &AcceptNewReplyCommand{ReplyId: replyId, AuthorId: "author1", CreatedOn: now}
 	events := []es.Event{
-		&PostCreatedEvent{},
-		&PostUpdatedEvent{},
-		&PostReplyStatisticInfoChangedEvent{},
-		&RepeatPostReplyChangedEvent{},
+		&PostReplyStatisticInfoChangedEvent{
+			ReplyId: replyId,
+			PostReplyStatisticInfo: PostReplyStatisticInfo{
+				LastReplyId:       replyId,
+				LastReplyAuthorId: "author1",
+				LastReplyTime:     now,
+				ReplyCount:        1,
+			},
+		},
 	}
-	assert.NotPanics(t, func() { NewPost().ApplyEvents(events) }, "Check Process All Event")
+
+	assert.Equal(t, events, post.ProcessAcceptNewReplyCommand(command), "处理AcceptNewReplyCommand命令返回的事件错误")
 }
 
-func TestPostCommand(t *testing.T) {
-	guid, replyId, newReplyId := es.NewGuid(), es.NewGuid(), es.NewGuid()
-	now := time.Now()
-	tests := []struct {
-		post    *Post
-		command es.Command
-		event   es.Event
-	}{
-		{
-			&Post{},
-			&CreatePostCommand{WithGuid: es.WithGuid{Guid: guid}, Subject: "subject1", Body: "body1", AuthorId: "author1"},
-			&PostCreatedEvent{WithGuid: es.WithGuid{Guid: guid}, Subject: "subject1", Body: "body1", AuthorId: "author1"},
+func TestAcceptNewReplyCommandOfLast(t *testing.T) {
+	replyId, newReplyId, now := es.NewGuid(), es.NewGuid(), time.Now()
+	post := &Post{
+		_replyIds: map[es.Guid]bool{},
+		_replyStatisticInfo: PostReplyStatisticInfo{
+			LastReplyId:       replyId,
+			LastReplyAuthorId: "author2",
+			LastReplyTime:     now,
+			ReplyCount:        3,
 		},
-		{
-			&Post{},
-			&UpdatePostCommand{WithGuid: es.WithGuid{Guid: guid}, Subject: "subject2", Body: "body2"},
-			&PostUpdatedEvent{WithGuid: es.WithGuid{Guid: guid}, Subject: "subject2", Body: "body2"},
-		},
-		{
-			&Post{_replyIds: map[es.Guid]bool{}},
-			&AcceptNewReplyCommand{
-				WithGuid:  es.WithGuid{Guid: guid},
-				ReplyId:   replyId,
-				AuthorId:  "author1",
-				CreatedOn: now,
+	}
+	command := &AcceptNewReplyCommand{
+		ReplyId:   newReplyId,
+		AuthorId:  "author1",
+		CreatedOn: now.Add(1 * time.Second),
+	}
+	events := []es.Event{
+		&PostReplyStatisticInfoChangedEvent{
+			ReplyId: newReplyId,
+			PostReplyStatisticInfo: PostReplyStatisticInfo{
+				LastReplyId:       newReplyId,
+				LastReplyAuthorId: "author1",
+				LastReplyTime:     now.Add(1 * time.Second),
+				ReplyCount:        4,
 			},
-			&PostReplyStatisticInfoChangedEvent{
-				WithGuid: es.WithGuid{Guid: guid},
-				ReplyId:  replyId,
-				PostReplyStatisticInfo: PostReplyStatisticInfo{
-					LastReplyId:       replyId,
-					LastReplyAuthorId: "author1",
-					LastReplyTime:     now,
-					ReplyCount:        1,
-				},
-			},
-		},
-		{
-			&Post{
-				_replyIds: map[es.Guid]bool{},
-				_replyStatisticInfo: PostReplyStatisticInfo{
-					LastReplyId:       replyId,
-					LastReplyAuthorId: "author2",
-					LastReplyTime:     now,
-					ReplyCount:        3,
-				},
-			},
-			&AcceptNewReplyCommand{
-				WithGuid:  es.WithGuid{Guid: guid},
-				ReplyId:   newReplyId,
-				AuthorId:  "author1",
-				CreatedOn: now.Add(1 * time.Second),
-			},
-			&PostReplyStatisticInfoChangedEvent{
-				WithGuid: es.WithGuid{Guid: guid},
-				ReplyId:  newReplyId,
-				PostReplyStatisticInfo: PostReplyStatisticInfo{
-					LastReplyId:       newReplyId,
-					LastReplyAuthorId: "author1",
-					LastReplyTime:     now.Add(1 * time.Second),
-					ReplyCount:        4,
-				},
-			},
-		},
-		{
-			&Post{
-				_replyIds: map[es.Guid]bool{},
-				_replyStatisticInfo: PostReplyStatisticInfo{
-					LastReplyId:       replyId,
-					LastReplyAuthorId: "author2",
-					LastReplyTime:     now,
-					ReplyCount:        3,
-				},
-			},
-			&AcceptNewReplyCommand{
-				WithGuid:  es.WithGuid{Guid: guid},
-				ReplyId:   newReplyId,
-				AuthorId:  "author1",
-				CreatedOn: now.Add(-1 * time.Second),
-			},
-			&PostReplyStatisticInfoChangedEvent{
-				WithGuid: es.WithGuid{Guid: guid},
-				ReplyId:  newReplyId,
-				PostReplyStatisticInfo: PostReplyStatisticInfo{
-					LastReplyId:       replyId,
-					LastReplyAuthorId: "author2",
-					LastReplyTime:     now,
-					ReplyCount:        4,
-				},
-			},
-		},
-		{
-			&Post{_replyIds: map[es.Guid]bool{replyId: true}},
-			&AcceptNewReplyCommand{WithGuid: es.WithGuid{Guid: guid}, ReplyId: replyId, AuthorId: "author1", CreatedOn: now},
-			&RepeatPostReplyChangedEvent{WithGuid: es.WithGuid{Guid: guid}, ReplyId: replyId},
 		},
 	}
 
-	for _, v := range tests {
-		assert.Equal(t, []es.Event{v.event}, v.post.ProcessCommand(v.command))
-	}
+	assert.Equal(t, events, post.ProcessAcceptNewReplyCommand(command), "处理AcceptNewReplyCommand命令返回的事件错误")
 }
 
-func TestPostCommand_Panic(t *testing.T) {
-	tests := []struct {
-		post    *Post
-		command es.Command
-	}{
-		{
-			&Post{},
-			&struct{ es.WithGuid }{},
+func TestAcceptNewReplyCommandOfBefore(t *testing.T) {
+	replyId, newReplyId, now := es.NewGuid(), es.NewGuid(), time.Now()
+	post := &Post{
+		_replyIds: map[es.Guid]bool{},
+		_replyStatisticInfo: PostReplyStatisticInfo{
+			LastReplyId:       replyId,
+			LastReplyAuthorId: "author2",
+			LastReplyTime:     now,
+			ReplyCount:        3,
 		},
-		{
-			&Post{},
-			&CreatePostCommand{Subject: strings.Repeat("s", 257), Body: "body1", AuthorId: "author1"},
-		},
-		{
-			&Post{},
-			&CreatePostCommand{Subject: "subject1", Body: strings.Repeat("s", 4001), AuthorId: "author1"},
-		},
-		{
-			&Post{},
-			&UpdatePostCommand{Subject: strings.Repeat("s", 257), Body: "body1"},
-		},
-		{
-			&Post{},
-			&UpdatePostCommand{Subject: "subject1", Body: strings.Repeat("s", 4001)},
+	}
+	command := &AcceptNewReplyCommand{
+		ReplyId:   newReplyId,
+		AuthorId:  "author1",
+		CreatedOn: now.Add(-1 * time.Second),
+	}
+	events := []es.Event{
+		&PostReplyStatisticInfoChangedEvent{
+			ReplyId: newReplyId,
+			PostReplyStatisticInfo: PostReplyStatisticInfo{
+				LastReplyId:       replyId,
+				LastReplyAuthorId: "author2",
+				LastReplyTime:     now,
+				ReplyCount:        4,
+			},
 		},
 	}
 
-	for _, v := range tests {
-		assert.Panics(t, func() { v.post.ProcessCommand(v.command) }, fmt.Sprintf("test panics error: command:%v", v.command))
-	}
+	assert.Equal(t, events, post.ProcessAcceptNewReplyCommand(command), "处理AcceptNewReplyCommand命令返回的事件错误")
+}
+
+func TestAcceptNewReplyCommandOfRepeatPostReply(t *testing.T) {
+	replyId, now := es.NewGuid(), time.Now()
+	post := &Post{_replyIds: map[es.Guid]bool{replyId: true}}
+	command := &AcceptNewReplyCommand{ReplyId: replyId, AuthorId: "author1", CreatedOn: now}
+	events := []es.Event{&RepeatPostReplyChangedEvent{ReplyId: replyId}}
+
+	assert.Equal(t, events, post.ProcessAcceptNewReplyCommand(command), "处理AcceptNewReplyCommand命令返回的事件错误")
+}
+
+func TestCreatePostCommandOfSubject_Panic(t *testing.T) {
+	command := &CreatePostCommand{Subject: strings.Repeat("s", 257), Body: "body1", AuthorId: "author1"}
+	assert.Panics(t, func() { new(Post).ProcessCreatePostCommand(command) }, "帖子主题长度大于256应该报错")
+}
+
+func TestCreatePostCommandOfBody_Panic(t *testing.T) {
+	command := &CreatePostCommand{Subject: "subject1", Body: strings.Repeat("s", 4001), AuthorId: "author1"}
+	assert.Panics(t, func() { new(Post).ProcessCreatePostCommand(command) }, "帖子内容长度大于4000应该报错")
+}
+
+func TestUpdatePostCommandOfSubject_Panic(t *testing.T) {
+	command := &UpdatePostCommand{Subject: strings.Repeat("s", 257), Body: "body1"}
+	assert.Panics(t, func() { new(Post).ProcessUpdatePostCommand(command) }, "更改帖子主题长度大于256应该报错")
+}
+
+func TestUpdatePostCommandOfBody_Panic(t *testing.T) {
+	command := &UpdatePostCommand{Subject: "subject1", Body: strings.Repeat("s", 4001)}
+	assert.Panics(t, func() { new(Post).ProcessUpdatePostCommand(command) }, "更改帖子内容长度大于4000应该报错")
 }
