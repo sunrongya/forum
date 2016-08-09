@@ -13,35 +13,35 @@ type RPost struct {
 }
 
 type PostProjector struct {
-	repository es.ReadRepository
+	_repository es.ReadRepository
 }
 
 func NewPostProjector(repository es.ReadRepository) *PostProjector {
-	return &PostProjector{repository: repository}
+	return &PostProjector{_repository: repository}
 }
 
-func (g *PostProjector) HandlePostCreatedEvent(event *PostCreatedEvent) {
+func (this *PostProjector) HandlePostCreatedEvent(event *PostCreatedEvent) {
 	post := &RPost{
 		Id:       event.GetGuid(),
 		Subject:  event.Subject,
 		Body:     event.Body,
 		AuthorId: event.AuthorId,
 	}
-	g.repository.Save(post.Id, post)
+	this._repository.Save(post.Id, post)
 }
 
-func (g *PostProjector) HandlePostReplyStatisticInfoChangedEvent(event *PostReplyStatisticInfoChangedEvent) {
-	g.do(event.GetGuid(), func(post *RPost) {
+func (this *PostProjector) HandlePostReplyStatisticInfoChangedEvent(event *PostReplyStatisticInfoChangedEvent) {
+	this.do(event.GetGuid(), func(post *RPost) {
 		post.PostReplyStatisticInfo = event.PostReplyStatisticInfo
 	})
 }
 
-func (g *PostProjector) do(id es.Guid, assignRPostFn func(*RPost)) {
-	i, err := g.repository.Find(id)
+func (this *PostProjector) do(id es.Guid, assignRPostFn func(*RPost)) {
+	i, err := this._repository.Find(id)
 	if err != nil {
 		return
 	}
 	post := i.(*RPost)
 	assignRPostFn(post)
-	g.repository.Save(id, post)
+	this._repository.Save(id, post)
 }

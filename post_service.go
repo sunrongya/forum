@@ -15,7 +15,7 @@ func NewPostService(store es.EventStore) *PostService {
 	return service
 }
 
-func (p *PostService) CreatePost(subject, body, authorId string) es.Guid {
+func (this *PostService) CreatePost(subject, body, authorId string) es.Guid {
 	guid := es.NewGuid()
 	c := &CreatePostCommand{
 		WithGuid: es.WithGuid{guid},
@@ -23,15 +23,15 @@ func (p *PostService) CreatePost(subject, body, authorId string) es.Guid {
 		Body:     body,
 		AuthorId: authorId,
 	}
-	p.PublishCommand(c)
+	this.PublishCommand(c)
 	return guid
 }
 
-func (p *PostService) UpdatePost(guid es.Guid, subject, body string) {
+func (this *PostService) UpdatePost(guid es.Guid, subject, body string) {
 	c := &UpdatePostCommand{
 		WithGuid: es.WithGuid{guid},
 		Subject:  subject,
 		Body:     body,
 	}
-	p.PublishCommand(c)
+	this.PublishCommand(c)
 }

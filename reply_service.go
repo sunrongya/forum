@@ -16,7 +16,7 @@ func NewReplyService(store es.EventStore) *ReplyService {
 	return service
 }
 
-func (p *ReplyService) CreateReply(postId, parentId es.Guid, body, authorId string, createdOn time.Time) es.Guid {
+func (this *ReplyService) CreateReply(postId, parentId es.Guid, body, authorId string, createdOn time.Time) es.Guid {
 	guid := es.NewGuid()
 	c := &CreateReplyCommand{
 		WithGuid:  es.WithGuid{guid},
@@ -26,14 +26,14 @@ func (p *ReplyService) CreateReply(postId, parentId es.Guid, body, authorId stri
 		AuthorId:  authorId,
 		CreatedOn: createdOn,
 	}
-	p.PublishCommand(c)
+	this.PublishCommand(c)
 	return guid
 }
 
-func (p *ReplyService) UpdateReply(guid es.Guid, body string) {
+func (this *ReplyService) UpdateReply(guid es.Guid, body string) {
 	c := &ChangeReplyBodyCommand{
 		WithGuid: es.WithGuid{guid},
 		Body:     body,
 	}
-	p.PublishCommand(c)
+	this.PublishCommand(c)
 }

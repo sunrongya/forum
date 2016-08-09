@@ -22,7 +22,7 @@ func NewPost() es.Aggregate {
 	}
 }
 
-func (p *Post) ProcessCreatePostCommand(command *CreatePostCommand) []es.Event {
+func (this *Post) ProcessCreatePostCommand(command *CreatePostCommand) []es.Event {
 	if len(command.Subject) > 256 {
 		panic(fmt.Errorf("帖子标题长度不能超过256"))
 	}
@@ -39,7 +39,7 @@ func (p *Post) ProcessCreatePostCommand(command *CreatePostCommand) []es.Event {
 	}
 }
 
-func (p *Post) ProcessUpdatePostCommand(command *UpdatePostCommand) []es.Event {
+func (this *Post) ProcessUpdatePostCommand(command *UpdatePostCommand) []es.Event {
 	if len(command.Subject) > 256 {
 		panic(fmt.Errorf("帖子标题长度不能超过256"))
 	}
@@ -55,27 +55,27 @@ func (p *Post) ProcessUpdatePostCommand(command *UpdatePostCommand) []es.Event {
 	}
 }
 
-func (p *Post) ProcessAcceptNewReplyCommand(command *AcceptNewReplyCommand) []es.Event {
-	if _, ok := p._replyIds[command.ReplyId]; ok {
+func (this *Post) ProcessAcceptNewReplyCommand(command *AcceptNewReplyCommand) []es.Event {
+	if _, ok := this._replyIds[command.ReplyId]; ok {
 		return []es.Event{&RepeatPostReplyChangedEvent{ReplyId: command.ReplyId}}
 	}
 	var replyStatisticInfo PostReplyStatisticInfo
-	if p._replyStatisticInfo.ReplyCount == 0 {
+	if this._replyStatisticInfo.ReplyCount == 0 {
 		replyStatisticInfo = PostReplyStatisticInfo{
 			LastReplyId:       command.ReplyId,
 			LastReplyAuthorId: command.AuthorId,
 			LastReplyTime:     command.CreatedOn,
 			ReplyCount:        1,
 		}
-	} else if p._replyStatisticInfo.LastReplyTime.After(command.CreatedOn) {
-		p._replyStatisticInfo.ReplyCount += 1
-		replyStatisticInfo = p._replyStatisticInfo
+	} else if this._replyStatisticInfo.LastReplyTime.After(command.CreatedOn) {
+		this._replyStatisticInfo.ReplyCount += 1
+		replyStatisticInfo = this._replyStatisticInfo
 	} else {
 		replyStatisticInfo = PostReplyStatisticInfo{
 			LastReplyId:       command.ReplyId,
 			LastReplyAuthorId: command.AuthorId,
 			LastReplyTime:     command.CreatedOn,
-			ReplyCount:        p._replyStatisticInfo.ReplyCount + 1,
+			ReplyCount:        this._replyStatisticInfo.ReplyCount + 1,
 		}
 	}
 	return []es.Event{
@@ -86,18 +86,18 @@ func (p *Post) ProcessAcceptNewReplyCommand(command *AcceptNewReplyCommand) []es
 	}
 }
 
-func (p *Post) HandlePostCreatedEvent(event *PostCreatedEvent) {
-	p._subject, p._body, p._authorId = event.Subject, event.Body, event.AuthorId
+func (this *Post) HandlePostCreatedEvent(event *PostCreatedEvent) {
+	this._subject, this._body, this._authorId = event.Subject, event.Body, event.AuthorId
 }
 
-func (p *Post) HandlePostUpdatedEvent(event *PostUpdatedEvent) {
-	p._subject, p._body = event.Subject, event.Body
+func (this *Post) HandlePostUpdatedEvent(event *PostUpdatedEvent) {
+	this._subject, this._body = event.Subject, event.Body
 }
 
-func (p *Post) HandlePostReplyStatisticInfoChangedEvent(event *PostReplyStatisticInfoChangedEvent) {
-	p._replyIds[event.ReplyId] = true
-	p._replyStatisticInfo = event.PostReplyStatisticInfo
+func (this *Post) HandlePostReplyStatisticInfoChangedEvent(event *PostReplyStatisticInfoChangedEvent) {
+	this._replyIds[event.ReplyId] = true
+	this._replyStatisticInfo = event.PostReplyStatisticInfo
 }
 
-func (p *Post) HandleRepeatPostReplyChangedEvent(event *RepeatPostReplyChangedEvent) {
+func (this *Post) HandleRepeatPostReplyChangedEvent(event *RepeatPostReplyChangedEvent) {
 }

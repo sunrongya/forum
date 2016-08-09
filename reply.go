@@ -21,7 +21,7 @@ func NewReply() es.Aggregate {
 	return &Reply{}
 }
 
-func (p *Reply) ProcessCreateReplyCommand(command *CreateReplyCommand) []es.Event {
+func (this *Reply) ProcessCreateReplyCommand(command *CreateReplyCommand) []es.Event {
 	if len(command.Body) > 4000 {
 		panic(fmt.Errorf("回复内容长度不能超过4000"))
 	}
@@ -36,7 +36,7 @@ func (p *Reply) ProcessCreateReplyCommand(command *CreateReplyCommand) []es.Even
 	}
 }
 
-func (p *Reply) ProcessChangeReplyBodyCommand(command *ChangeReplyBodyCommand) []es.Event {
+func (this *Reply) ProcessChangeReplyBodyCommand(command *ChangeReplyBodyCommand) []es.Event {
 	if len(command.Body) > 4000 {
 		panic(fmt.Errorf("回复内容长度不能超过4000"))
 	}
@@ -45,14 +45,14 @@ func (p *Reply) ProcessChangeReplyBodyCommand(command *ChangeReplyBodyCommand) [
 	}
 }
 
-func (p *Reply) HandleReplyCreatedEvent(event *ReplyCreatedEvent) {
-	p._postId = event.PostId
-	p._parentId = event.ParentId
-	p._authorId = event.AuthorId
-	p._body = event.Body
-	p._createdOn = event.CreatedOn
+func (this *Reply) HandleReplyCreatedEvent(event *ReplyCreatedEvent) {
+	this._postId = event.PostId
+	this._parentId = event.ParentId
+	this._authorId = event.AuthorId
+	this._body = event.Body
+	this._createdOn = event.CreatedOn
 }
 
-func (p *Reply) HandleReplyBodyChangedEvent(event *ReplyBodyChangedEvent) {
-	p._body = event.Body
+func (this *Reply) HandleReplyBodyChangedEvent(event *ReplyBodyChangedEvent) {
+	this._body = event.Body
 }
