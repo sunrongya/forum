@@ -1,4 +1,4 @@
-# forum
+# 简介
 帖子回复DDD项目，演示DDD+TDD+CQRS+Event Sourcing技术
 
 ## 需求
